@@ -1,0 +1,6 @@
+# Copia este archivo como local.properties (NO se sube a git)
+sdk.dir=/Users/TU_USUARIO/Library/Android/sdk
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi...
+# owner/repo de GitHub donde se publican las releases (para el actualizador)
+GITHUB_REPO=tu-usuario/gastos-casa

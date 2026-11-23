@@ -1,0 +1,42 @@
+package com.gastoscasa.ui
+
+import com.gastoscasa.domain.Money
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+
+object Fmt {
+    val es: Locale = Locale.forLanguageTag("es-ES")
+    private val dateTime = DateTimeFormatter.ofPattern("d MMM · HH:mm", es)
+
+    fun money(cents: Long) = Money.format(cents)
+    fun signed(cents: Long) = if (cents > 0) "+" + Money.format(cents) else Money.format(cents)
+    fun dateTime(i: Instant): String = dateTime.format(i.atZone(ZoneId.systemDefault()))
+    fun monthShort(ym: YearMonth): String = ym.month.getDisplayName(TextStyle.SHORT, es).trimEnd('.').replaceFirstChar { it.uppercase() }
+    fun monthLong(ym: YearMonth): String =
+        ym.month.getDisplayName(TextStyle.FULL_STANDALONE, es).replaceFirstChar { it.uppercase() } + " " + ym.year
+}
+
+private val knownServerErrors = listOf(
+    "Código no válido", "No eres miembro del grupo", "El pagador no pertenece al grupo",
+    "Elige al menos una persona", "El reparto no suma el total", "Una de las personas no pertenece al grupo",
+    "Aún hay deudas pendientes en el grupo", "No hay gastos que archivar", "No autenticado",
+)
+
+/** Convierte excepciones técnicas en mensajes entendibles. */
+fun Throwable.friendly(): String {
+    val m = message.orEmpty()
+    knownServerErrors.firstOrNull { it in m }?.let { return it }
+    return when {
+        "Invalid login credentials" in m -> "Email o contraseña incorrectos"
+        "already registered" in m || "already been registered" in m -> "Ese email ya está registrado"
+        "Password should be" in m -> "La contraseña debe tener al menos 6 caracteres"
+        "Email not confirmed" in m -> "Confirma tu email (o desactiva 'Confirm email' en Supabase)"
+        "duplicate key" in m -> "Ya existe un elemento con ese nombre"
+        this is java.net.UnknownHostException || "Unable to resolve host" in m -> "Sin conexión a internet"
+        else -> m.lineSequence().firstOrNull { it.isNotBlank() }?.take(160) ?: "Error inesperado"
+    }
+}
