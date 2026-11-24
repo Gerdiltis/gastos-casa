@@ -30,6 +30,7 @@ import com.gastoscasa.ui.screens.GroupDetailScreen
 import com.gastoscasa.ui.screens.GroupsScreen
 import com.gastoscasa.ui.screens.HomeScreen
 import com.gastoscasa.ui.screens.SettingsScreen
+import com.gastoscasa.ui.screens.ShoppingScreen
 import com.gastoscasa.ui.screens.StatsScreen
 import com.gastoscasa.ui.screens.UpdateDialog
 import com.gastoscasa.ui.screens.UpdateViewModel
@@ -86,6 +87,7 @@ private fun MainNav(updateVm: UpdateViewModel) {
                 )
             }
             composable("groups") { GroupsScreen(onOpenGroup = { nav.navigate("group/$it") }) }
+            composable("shopping") { ShoppingScreen(onSeeGroups = { nav.navigateTab("groups") }) }
             composable("stats") { StatsScreen() }
             composable("settings") { SettingsScreen(updateVm) }
             composable("group/{groupId}") {

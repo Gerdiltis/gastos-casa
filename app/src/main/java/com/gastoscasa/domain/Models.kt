@@ -43,3 +43,11 @@ data class Expense(
 
 /** Pago sugerido para saldar deudas: [from] paga [amountCents] a [to]. */
 data class Transfer(val from: String, val to: String, val amountCents: Long)
+
+data class ShoppingItem(
+    val id: String,
+    val groupId: String,
+    val name: String,
+    val addedBy: String,
+    val createdAt: Instant,
+)

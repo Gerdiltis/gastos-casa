@@ -15,6 +15,17 @@ object Fmt {
     fun money(cents: Long) = Money.format(cents)
     fun signed(cents: Long) = if (cents > 0) "+" + Money.format(cents) else Money.format(cents)
     fun dateTime(i: Instant): String = dateTime.format(i.atZone(ZoneId.systemDefault()))
+    /** "ahora", "hace 5 min", "hace 3 h", "hace 2 d" o la fecha si es más antiguo. */
+    fun ago(i: Instant, now: Instant = Instant.now()): String {
+        val min = java.time.Duration.between(i, now).toMinutes().coerceAtLeast(0)
+        return when {
+            min < 1 -> "ahora"
+            min < 60 -> "hace $min min"
+            min < 24 * 60 -> "hace ${min / 60} h"
+            min < 7 * 24 * 60 -> "hace ${min / (24 * 60)} d"
+            else -> dateTime(i).substringBefore(" ·")
+        }
+    }
     fun monthShort(ym: YearMonth): String = ym.month.getDisplayName(TextStyle.SHORT, es).trimEnd('.').replaceFirstChar { it.uppercase() }
     fun monthLong(ym: YearMonth): String =
         ym.month.getDisplayName(TextStyle.FULL_STANDALONE, es).replaceFirstChar { it.uppercase() } + " " + ym.year

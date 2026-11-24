@@ -127,7 +127,7 @@ fun GroupsScreen(onOpenGroup: (String) -> Unit, vm: GroupsViewModel = hiltViewMo
                 items(shown, key = { it.first.id }) { (g, bal) ->
                     AppCard(Modifier.fillMaxWidth(), onClick = { onOpenGroup(g.id) }, padding = 14.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBubble("🏠", AppColors.Teal)
+                            IconBubble(com.gastoscasa.domain.CategoryIconKeys.HOME, AppColors.Teal)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("${g.name} • ${g.members.size}", style = MaterialTheme.typography.titleMedium)

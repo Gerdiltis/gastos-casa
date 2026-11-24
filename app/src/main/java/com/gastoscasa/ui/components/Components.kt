@@ -111,11 +111,19 @@ fun PillTabs(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modi
 }
 
 @Composable
-fun IconBubble(emoji: String, color: Color = AppColors.Yellow, size: Dp = 46.dp) {
+fun IconBubble(icon: String, color: Color = AppColors.Yellow, size: Dp = 46.dp) {
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(14.dp)).background(color.copy(alpha = 0.18f)),
+        Modifier.size(size).clip(RoundedCornerShape(14.dp)).background(color.copy(alpha = 0.22f)),
         contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = (size.value * 0.45f).sp) }
+    ) { CategoryGlyph(icon, size * 0.5f) }
+}
+
+/** Icono de categoría: vector propio si es "ic:…", si no el emoji tal cual. */
+@Composable
+fun CategoryGlyph(icon: String, size: Dp = 18.dp, tint: Color = AppColors.Ink) {
+    val vector = CategoryIcons.vectorFor(icon)
+    if (vector != null) Icon(vector, null, tint = tint, modifier = Modifier.size(size))
+    else Text(icon, fontSize = (size.value * 0.9f).sp)
 }
 
 @Composable
@@ -249,7 +257,10 @@ fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit, leading: S
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leading != null) { Text(leading); Spacer(Modifier.width(6.dp)) }
+        if (leading != null) {
+            CategoryGlyph(leading, 18.dp, if (selected) Color.White else AppColors.Ink)
+            Spacer(Modifier.width(6.dp))
+        }
         Text(label, color = if (selected) Color.White else AppColors.Ink, style = MaterialTheme.typography.bodyMedium)
     }
 }

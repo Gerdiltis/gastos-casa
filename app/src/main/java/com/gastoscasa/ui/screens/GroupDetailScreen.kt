@@ -154,7 +154,7 @@ class GroupDetailViewModel @Inject constructor(
 
     fun addCategory(name: String, icon: String, color: String) {
         if (name.isBlank()) { _state.update { it.copy(error = "Escribe un nombre de categoría") }; return }
-        action("Categoría creada") { repo.addCategory(groupId, name, icon.ifBlank { "🏷️" }, color) }
+        action("Categoría creada") { repo.addCategory(groupId, name, com.gastoscasa.domain.CategoryIconKeys.normalize(icon), color) }
     }
 
     fun deleteCategory(id: String) = action("Categoría eliminada") { repo.deleteCategory(id) }
@@ -275,7 +275,7 @@ private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDe
             title = { Text(e.description) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("${Fmt.money(e.amountCents)} · ${o.categoryOf(e.categoryId)?.let { "${it.icon} ${it.name}" } ?: if (e.isSettlement) "Liquidación" else "Sin categoría"}")
+                    Text("${Fmt.money(e.amountCents)} · ${o.categoryOf(e.categoryId)?.name ?: if (e.isSettlement) "Liquidación" else "Sin categoría"}")
                     Text("Pagó ${g.memberName(e.paidBy)} · ${Fmt.dateTime(e.createdAt)}", color = AppColors.Muted)
                     Text("Añadido por ${g.memberName(e.createdBy)}", color = AppColors.Muted)
                     Spacer(Modifier.height(6.dp))
@@ -332,7 +332,7 @@ private fun LazyListScope.balancesTab(o: Overview, state: GroupDetailState, vm: 
     items(state.transfers, key = { "${it.from}-${it.to}" }) { t ->
         AppCard(Modifier.fillMaxWidth(), padding = 14.dp) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBubble("🤝", AppColors.Teal, 40.dp)
+                IconBubble(com.gastoscasa.domain.CategoryIconKeys.SWAP, AppColors.Teal, 40.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("${g.memberName(t.from)} → ${g.memberName(t.to)}", style = MaterialTheme.typography.titleMedium)
@@ -403,14 +403,23 @@ private fun LazyListScope.categoriesTab(o: Overview, state: GroupDetailState, vm
 @Composable
 private fun NewCategoryCard(busy: Boolean, vm: GroupDetailViewModel) {
     var name by remember { mutableStateOf("") }
-    var icon by remember { mutableStateOf("") }
+    var icon by remember { mutableStateOf(com.gastoscasa.domain.CategoryIconKeys.TAG) }
     var color by remember { mutableStateOf(AppColors.palette.first()) }
     AppCard(Modifier.fillMaxWidth()) {
         Text("Nueva categoría", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppTextField(icon, { icon = it.take(4) }, "😀", Modifier.width(84.dp))
-            AppTextField(name, { name = it.take(40) }, "Nombre", Modifier.weight(1f))
+        AppTextField(name, { name = it.take(40) }, "Nombre", Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.gastoscasa.domain.CategoryIconKeys.selectable.forEach { key ->
+                val active = key == icon
+                Box(
+                    Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                        .background(if (active) AppColors.Ink else AppColors.parse(color).copy(alpha = 0.22f))
+                        .clickable { icon = key },
+                    contentAlignment = Alignment.Center,
+                ) { com.gastoscasa.ui.components.CategoryGlyph(key, 22.dp, if (active) Color.White else AppColors.Ink) }
+            }
         }
         Spacer(Modifier.height(10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -423,7 +432,7 @@ private fun NewCategoryCard(busy: Boolean, vm: GroupDetailViewModel) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        PrimaryButton("Añadir categoría", { vm.addCategory(name, icon, color); name = ""; icon = "" }, enabled = !busy)
+        PrimaryButton("Añadir categoría", { vm.addCategory(name, icon, color); name = "" }, enabled = !busy)
     }
 }
 

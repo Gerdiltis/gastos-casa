@@ -154,7 +154,7 @@ fun StatsScreen(vm: StatsViewModel = hiltViewModel()) {
                     val cat = o.categories.firstOrNull { it.name == name }
                     AppCard(Modifier.fillMaxWidth(), padding = 16.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBubble(cat?.icon ?: "🏷️", AppColors.parse(color), 50.dp)
+                            IconBubble(cat?.icon ?: com.gastoscasa.domain.CategoryIconKeys.TAG, AppColors.parse(color), 50.dp)
                             Spacer(Modifier.width(14.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(name, color = AppColors.Muted)

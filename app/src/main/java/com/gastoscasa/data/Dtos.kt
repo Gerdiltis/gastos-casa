@@ -2,6 +2,7 @@ package com.gastoscasa.data
 
 import com.gastoscasa.domain.Category
 import com.gastoscasa.domain.Expense
+import com.gastoscasa.domain.ShoppingItem
 import com.gastoscasa.domain.Split
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -67,6 +68,20 @@ data class ExpenseDto(
         splits = expense_splits.map { Split(it.user_id, it.share_cents) },
     )
 }
+
+@Serializable
+data class ShoppingItemDto(
+    val id: String,
+    val group_id: String,
+    val name: String,
+    val added_by: String,
+    val created_at: String,
+) {
+    fun toDomain() = ShoppingItem(id, group_id, name, added_by, parseInstant(created_at))
+}
+
+@Serializable
+data class ShoppingItemInsert(val group_id: String, val name: String, val added_by: String)
 
 @Serializable
 data class GithubAsset(val name: String, val browser_download_url: String)

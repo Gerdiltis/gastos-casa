@@ -24,6 +24,7 @@ data class NavItem(val route: String, val icon: ImageVector, val label: String)
 val mainNavItems = listOf(
     NavItem("home", AppIcons.Home, "Inicio"),
     NavItem("groups", AppIcons.Groups, "Grupos"),
+    NavItem("shopping", CategoryIcons.Cart, "Compra"),
     NavItem("stats", AppIcons.Bars, "Estadísticas"),
     NavItem("settings", AppIcons.Gear, "Ajustes"),
 )
@@ -38,14 +39,14 @@ fun FloatingNavBar(current: String?, onSelect: (String) -> Unit, modifier: Modif
             .clip(shape)
             .background(Color.White)
             .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         mainNavItems.forEach { item ->
             val active = item.route == current
             Box(
                 Modifier
-                    .size(width = if (active) 70.dp else 54.dp, height = 58.dp)
+                    .size(width = if (active) 62.dp else 50.dp, height = 56.dp)
                     .clip(RoundedCornerShape(22.dp))
                     .background(if (active) AppColors.Ink else Color.Transparent)
                     .clickable { onSelect(item.route) },

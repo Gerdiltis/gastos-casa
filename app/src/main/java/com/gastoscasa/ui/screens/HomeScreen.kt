@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.gastoscasa.data.LoadOverview
 import com.gastoscasa.data.Overview
+import com.gastoscasa.domain.CategoryIconKeys
 import com.gastoscasa.domain.Expense
 import com.gastoscasa.domain.Stats
 import com.gastoscasa.domain.StatsScope
@@ -145,7 +146,7 @@ fun HomeScreen(onOpenGroup: (String) -> Unit, onSeeGroups: () -> Unit, vm: HomeV
                             val bal = balances[g.id] ?: 0
                             AppCard(Modifier.width(220.dp), onClick = { onOpenGroup(g.id) }) {
                                 Row(verticalAlignment = Alignment.Top) {
-                                    IconBubble("🏠", AppColors.Teal)
+                                    IconBubble(CategoryIconKeys.HOME, AppColors.Teal)
                                     Spacer(Modifier.weight(1f))
                                     Text(
                                         "${g.members.size} personas", color = Color.White, style = MaterialTheme.typography.labelMedium,
@@ -247,7 +248,7 @@ fun ExpenseRow(e: Expense, subtitlePrefix: String, o: Overview, onClick: () -> U
     val group = o.groupOf(e.groupId)
     AppCard(Modifier.fillMaxWidth(), onClick = onClick, padding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBubble(if (e.isSettlement) "🤝" else cat?.icon ?: "🏷️", cat?.let { AppColors.parse(it.color) } ?: AppColors.Teal)
+            IconBubble(if (e.isSettlement) CategoryIconKeys.SWAP else cat?.icon ?: CategoryIconKeys.TAG, cat?.let { AppColors.parse(it.color) } ?: AppColors.Teal)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(e.description, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
