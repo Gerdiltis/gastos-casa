@@ -85,6 +85,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.gastoscasa.data.RecurringRepository
+import com.gastoscasa.domain.RecurringExpense
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class GroupDetailState(
@@ -95,6 +98,7 @@ data class GroupDetailState(
     val message: String? = null,
     /** Vista del grupo con el mismo modelo que la pantalla de inicio. */
     val data: Overview? = null,
+    val recurring: List<RecurringExpense> = emptyList(),
 ) {
     val group get() = data?.groups?.firstOrNull()
     val balances: Map<String, Long>
@@ -106,6 +110,7 @@ data class GroupDetailState(
 class GroupDetailViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val repo: GroupRepository,
+    private val recurringRepo: RecurringRepository,
     private val auth: AuthRepository,
 ) : ViewModel() {
     val groupId: String = checkNotNull(savedState["groupId"])
@@ -124,9 +129,10 @@ class GroupDetailViewModel @Inject constructor(
                 val group = async { repo.group(groupId) }
                 val expenses = async { repo.expenses(groupId) }
                 val categories = async { repo.categories(groupId) }
+                val recurring = async { runCatching { recurringRepo.list(groupId) }.getOrDefault(emptyList()) }
                 val g = group.await() ?: error("Ya no perteneces a este grupo")
-                Overview(auth.currentUserId.orEmpty(), "", listOf(g), expenses.await(), categories.await())
-            }.onSuccess { d -> _state.update { it.copy(loading = false, refreshing = false, data = d, error = null) } }
+                Overview(auth.currentUserId.orEmpty(), "", listOf(g), expenses.await(), categories.await()) to recurring.await()
+            }.onSuccess { (d, r) -> _state.update { it.copy(loading = false, refreshing = false, data = d, recurring = r, error = null) } }
                 .onFailure { e -> _state.update { it.copy(loading = false, refreshing = false, error = e.friendly()) } }
         }
     }
@@ -141,6 +147,13 @@ class GroupDetailViewModel @Inject constructor(
     }
 
     fun deleteExpense(e: Expense) = action("Gasto eliminado") { repo.deleteExpense(e.id) }
+
+    fun resolveRecurring(r: RecurringExpense, accept: Boolean) {
+        val date = r.nextDate ?: return
+        action(if (accept) "Gasto apuntado" else "Repetición omitida") { recurringRepo.resolve(r.id, date, accept) }
+    }
+
+    fun stopRecurring(r: RecurringExpense) = action("Recurrencia detenida: no se apuntarán más") { recurringRepo.stop(r.id) }
 
     fun recordPayment(t: Transfer) = action("Pago registrado") {
         val g = state.value.group ?: return@action
@@ -174,6 +187,7 @@ fun GroupDetailScreen(
     onBack: () -> Unit,
     onAddExpense: (String) -> Unit,
     onEditExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> },
+    onRoute: (String) -> Unit = {},
     vm: GroupDetailViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -212,7 +226,7 @@ fun GroupDetailScreen(
                     return@LazyColumn
                 }
                 when (tab) {
-                    0 -> expensesTab(o, state, vm, onEditExpense)
+                    0 -> expensesTab(o, state, vm, onEditExpense, onRoute)
                     1 -> balancesTab(o, state, vm)
                     2 -> categoriesTab(o, state, vm)
                     else -> infoTab(o, state, vm, onBack)
@@ -224,12 +238,16 @@ fun GroupDetailScreen(
 
 // ---------------------------------------------------------------- Gastos
 
-private fun LazyListScope.expensesTab(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit) {
-    item { ExpensesTabContent(o, state, vm, onEdit) }
+private fun LazyListScope.expensesTab(
+    o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit, onRoute: (String) -> Unit,
+) {
+    item { ExpensesTabContent(o, state, vm, onEdit, onRoute) }
 }
 
 @Composable
-private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit) {
+private fun ExpensesTabContent(
+    o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit, onRoute: (String) -> Unit,
+) {
     var archived by rememberSaveable { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
@@ -239,6 +257,9 @@ private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDe
     val myBalance = state.balances[o.me] ?: 0
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val today = LocalDate.now()
+        val pending = state.recurring.filter { it.createdBy == o.me && it.isPending(today) }
+        if (pending.isNotEmpty()) PendingRecurringCard(pending, state.busy, vm, onRoute)
         AppTextField(query, { query = it }, "Buscar gastos…", leading = { Icon(Icons.Default.Search, null, tint = AppColors.Muted) })
         PillTabs(listOf("Activos ${active.size}", "Archivados ${old.size}"), archived, { archived = it })
         CategoryFilterRow(o, categoryFilter) { categoryFilter = it }
@@ -256,6 +277,9 @@ private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDe
             )
         }
         list.forEach { e -> ExpenseRow(e, o.categoryOf(e.categoryId)?.name ?: "", o, onClick = { selected = e }) }
+        if (archived == 0 && state.recurring.any { it.active }) {
+            RecurringSection(o, state.recurring.filter { it.active }, state.busy, vm, onRoute)
+        }
         if (archived == 0) {
             SmartTipCard(
                 "Tu situación",
@@ -279,6 +303,19 @@ private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDe
                     Text("${Fmt.money(e.amountCents)} · ${o.categoryOf(e.categoryId)?.name ?: if (e.isSettlement) "Liquidación" else "Sin categoría"}")
                     Text("Pagó ${g.memberName(e.paidBy)} · ${Fmt.dateTime(e.createdAt)}", color = AppColors.Muted)
                     Text("Añadido por ${g.memberName(e.createdBy)}", color = AppColors.Muted)
+                    if (e.recurringId != null) {
+                        val r = state.recurring.firstOrNull { it.id == e.recurringId }
+                        Text(
+                            "🔁 Repetición ${e.occurrence ?: "?"}${r?.let { "/${it.total}" } ?: ""}" +
+                                (r?.let { " · ${it.frequency.label.lowercase()}" } ?: ""),
+                            color = AppColors.Muted,
+                        )
+                        if (r != null && r.active && r.createdBy == o.me) {
+                            TextButton(onClick = { selected = null; onRoute("group/${e.groupId}/recurring/${r.id}") }) {
+                                Text("Editar recurrencia", color = AppColors.Ink)
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(6.dp))
                     Text(if (e.isSettlement) "Recibe:" else "Reparto:", fontWeight = FontWeight.SemiBold)
                     e.splits.forEach { s -> Text("• ${g.memberName(s.userId)}: ${Fmt.money(s.shareCents)}") }
@@ -505,6 +542,73 @@ private fun InfoTabContent(o: Overview, state: GroupDetailState, vm: GroupDetail
                 }
             },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancelar", color = AppColors.Muted) } },
+        )
+    }
+}
+
+
+// ---------------------------------------------------------------- Recurrentes
+
+@Composable
+private fun PendingRecurringCard(pending: List<RecurringExpense>, busy: Boolean, vm: GroupDetailViewModel, onRoute: (String) -> Unit) {
+    AppCard(Modifier.fillMaxWidth()) {
+        Text("Pendientes de confirmar", style = MaterialTheme.typography.titleMedium)
+        Text("Gastos recurrentes que tocan hoy o antes", style = MaterialTheme.typography.labelMedium, color = AppColors.Muted)
+        pending.forEach { r ->
+            Spacer(Modifier.height(12.dp))
+            Text("${r.description} · ${Fmt.money(r.amountCents)}", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "${Fmt.date(r.nextDate!!)} · repetición ${r.occurrence + 1}/${r.total}",
+                style = MaterialTheme.typography.labelMedium, color = AppColors.Muted,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { vm.resolveRecurring(r, true) }, enabled = !busy) { Text("Apuntar", color = AppColors.Ink, fontWeight = FontWeight.SemiBold) }
+                TextButton(onClick = { onRoute("group/${r.groupId}/recurring/${r.id}/confirm/${r.nextDate}") }, enabled = !busy) { Text("Revisar", color = AppColors.Ink) }
+                TextButton(onClick = { vm.resolveRecurring(r, false) }, enabled = !busy) { Text("Omitir", color = AppColors.Muted) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurringSection(o: Overview, list: List<RecurringExpense>, busy: Boolean, vm: GroupDetailViewModel, onRoute: (String) -> Unit) {
+    var stopping by remember { mutableStateOf<RecurringExpense?>(null) }
+    val g = o.groups.first()
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("Recurrentes")
+        list.forEach { r ->
+            AppCard(Modifier.fillMaxWidth(), padding = 14.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBubble(o.categoryOf(r.categoryId)?.icon ?: com.gastoscasa.domain.CategoryIconKeys.TAG,
+                        o.categoryOf(r.categoryId)?.let { AppColors.parse(it.color) } ?: AppColors.Teal, 42.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(r.description, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                        Text(
+                            "${Fmt.money(r.amountCents)} ${r.frequency.every} · ${r.occurrence}/${r.total}" +
+                                (r.nextDate?.let { " · próxima ${Fmt.date(it)}" } ?: ""),
+                            style = MaterialTheme.typography.labelMedium, color = AppColors.Muted,
+                        )
+                        Text("Creada por ${g.memberName(r.createdBy)} · hasta ${Fmt.date(r.endDate)}", style = MaterialTheme.typography.labelSmall, color = AppColors.Muted)
+                    }
+                }
+                if (r.createdBy == o.me) {
+                    Row {
+                        TextButton(onClick = { onRoute("group/${r.groupId}/recurring/${r.id}") }, enabled = !busy) { Text("Editar", color = AppColors.Ink) }
+                        TextButton(onClick = { stopping = r }, enabled = !busy) { Text("Detener", color = AppColors.Red) }
+                    }
+                }
+            }
+        }
+    }
+    stopping?.let { r ->
+        AlertDialog(
+            onDismissRequest = { stopping = null },
+            containerColor = AppColors.Card,
+            title = { Text("¿Detener «${r.description}»?") },
+            text = { Text("No se apuntarán más repeticiones. Los gastos ya apuntados se quedan como están.") },
+            confirmButton = { TextButton(onClick = { vm.stopRecurring(r); stopping = null }) { Text("Detener", color = AppColors.Red, fontWeight = FontWeight.SemiBold) } },
+            dismissButton = { TextButton(onClick = { stopping = null }) { Text("Cancelar", color = AppColors.Muted) } },
         )
     }
 }

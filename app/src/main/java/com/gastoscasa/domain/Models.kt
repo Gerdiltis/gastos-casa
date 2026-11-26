@@ -36,6 +36,8 @@ data class Expense(
     val createdAt: Instant,
     val archivedAt: Instant?,
     val splits: List<Split>,
+    val recurringId: String? = null,
+    val occurrence: Int? = null,
 ) {
     val isArchived: Boolean get() = archivedAt != null
     fun shareOf(userId: String): Long = splits.firstOrNull { it.userId == userId }?.shareCents ?: 0L

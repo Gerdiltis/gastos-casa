@@ -13,18 +13,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    /** Grupo a abrir al tocar una notificación (se consume una vez). */
-    private val openGroup = MutableStateFlow<String?>(null)
+    /** Ruta a abrir al tocar una notificación (se consume una vez). */
+    private val openRoute = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) openGroup.value = intent.getStringExtra(Notifications.EXTRA_GROUP)
-        setContent { GastosTheme { AppRoot(openGroup) } }
+        if (savedInstanceState == null) openRoute.value = intent.getStringExtra(Notifications.EXTRA_ROUTE)
+        setContent { GastosTheme { AppRoot(openRoute) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(Notifications.EXTRA_GROUP)?.let { openGroup.value = it }
+        intent.getStringExtra(Notifications.EXTRA_ROUTE)?.let { openRoute.value = it }
     }
 }

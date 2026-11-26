@@ -2,10 +2,13 @@ package com.gastoscasa.data
 
 import com.gastoscasa.domain.Category
 import com.gastoscasa.domain.Expense
+import com.gastoscasa.domain.Frequency
+import com.gastoscasa.domain.RecurringExpense
 import com.gastoscasa.domain.ShoppingItem
 import com.gastoscasa.domain.Split
 import kotlinx.serialization.Serializable
 import java.time.Instant
+import java.time.LocalDate
 import java.time.OffsetDateTime
 
 @Serializable
@@ -58,6 +61,8 @@ data class ExpenseDto(
     val created_by: String,
     val created_at: String,
     val archived_at: String? = null,
+    val recurring_id: String? = null,
+    val occurrence: Int? = null,
     val expense_splits: List<SplitDto> = emptyList(),
 ) {
     fun toDomain() = Expense(
@@ -66,6 +71,31 @@ data class ExpenseDto(
         createdBy = created_by, createdAt = parseInstant(created_at),
         archivedAt = archived_at?.let(::parseInstant),
         splits = expense_splits.map { Split(it.user_id, it.share_cents) },
+        recurringId = recurring_id, occurrence = occurrence,
+    )
+}
+
+@Serializable
+data class RecurringDto(
+    val id: String,
+    val group_id: String,
+    val created_by: String,
+    val description: String,
+    val amount_cents: Long,
+    val category_id: String? = null,
+    val paid_by: String,
+    val participants: List<String>,
+    val frequency: String,
+    val start_date: String,
+    val end_date: String,
+    val occurrence: Int,
+    val next_date: String? = null,
+    val active: Boolean,
+) {
+    fun toDomain() = RecurringExpense(
+        id, group_id, created_by, description, amount_cents, category_id, paid_by, participants,
+        Frequency.of(frequency), LocalDate.parse(start_date), LocalDate.parse(end_date), occurrence,
+        next_date?.let(LocalDate::parse), active,
     )
 }
 

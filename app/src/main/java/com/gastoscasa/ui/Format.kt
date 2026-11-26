@@ -12,6 +12,8 @@ object Fmt {
     val es: Locale = Locale.forLanguageTag("es-ES")
     private val dateTime = DateTimeFormatter.ofPattern("d MMM · HH:mm", es)
 
+    private val dateFmt = DateTimeFormatter.ofPattern("d MMM yyyy", es)
+    fun date(d: java.time.LocalDate): String = dateFmt.format(d).replace(".", "")
     fun money(cents: Long) = Money.format(cents)
     fun signed(cents: Long) = if (cents > 0) "+" + Money.format(cents) else Money.format(cents)
     fun dateTime(i: Instant): String = dateTime.format(i.atZone(ZoneId.systemDefault()))
@@ -36,6 +38,9 @@ private val knownServerErrors = listOf(
     "Elige al menos una persona", "El reparto no suma el total", "Una de las personas no pertenece al grupo",
     "Aún hay deudas pendientes en el grupo", "No hay gastos que archivar", "No autenticado",
     "No se puede editar un gasto archivado", "Importe no válido",
+    "Solo quien creó la recurrencia puede confirmarla", "Solo quien creó la recurrencia puede cambiarla",
+    "Solo quien creó la recurrencia puede detenerla", "Esta repetición ya se resolvió", "Aún no toca esta repetición",
+    "La fecha de fin debe ser posterior al inicio", "El inicio no puede ser anterior a hoy", "Frecuencia no válida",
 )
 
 /** Convierte excepciones técnicas en mensajes entendibles. */

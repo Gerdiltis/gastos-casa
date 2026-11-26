@@ -16,6 +16,7 @@ import javax.inject.Singleton
 class PushRepository @Inject constructor(private val supabase: SupabaseClient) {
 
     suspend fun register(token: String? = null) {
+        supabase.auth.awaitInitialization()
         if (supabase.auth.currentSessionOrNull() == null) return
         val t = token ?: FirebaseMessaging.getInstance().token.await()
         supabase.postgrest.rpc("register_device", buildJsonObject { put("p_token", t) })

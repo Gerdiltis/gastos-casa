@@ -94,7 +94,7 @@ private fun MainNav(updateVm: UpdateViewModel, openGroup: MutableStateFlow<Strin
     NotificationSetup(sessionVm)
     val pendingGroup by openGroup.collectAsStateWithLifecycle()
     LaunchedEffect(pendingGroup) {
-        pendingGroup?.let { id -> nav.navigate("group/$id") { launchSingleTop = true }; openGroup.value = null }
+        pendingGroup?.let { route -> nav.navigate(route) { launchSingleTop = true }; openGroup.value = null }
     }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
@@ -117,10 +117,13 @@ private fun MainNav(updateVm: UpdateViewModel, openGroup: MutableStateFlow<Strin
                     onBack = { nav.popBackStack() },
                     onAddExpense = { id -> nav.navigate("group/$id/new") },
                     onEditExpense = { g, e -> nav.navigate("group/$g/edit/$e") },
+                    onRoute = { nav.navigate(it) },
                 )
             }
             composable("group/{groupId}/new") { AddExpenseScreen(onBack = { nav.popBackStack() }) }
             composable("group/{groupId}/edit/{expenseId}") { AddExpenseScreen(onBack = { nav.popBackStack() }) }
+            composable("group/{groupId}/recurring/{recurringId}") { AddExpenseScreen(onBack = { nav.popBackStack() }) }
+            composable("group/{groupId}/recurring/{recurringId}/confirm/{date}") { AddExpenseScreen(onBack = { nav.popBackStack() }) }
         }
         if (showBar) {
             FloatingNavBar(
