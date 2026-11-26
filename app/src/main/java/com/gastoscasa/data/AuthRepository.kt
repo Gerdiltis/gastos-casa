@@ -12,7 +12,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AuthRepository @Inject constructor(private val supabase: SupabaseClient) {
+class AuthRepository @Inject constructor(
+    private val supabase: SupabaseClient,
+    private val push: PushRepository,
+) {
 
     val sessionStatus: StateFlow<SessionStatus> get() = supabase.auth.sessionStatus
 
@@ -36,7 +39,10 @@ class AuthRepository @Inject constructor(private val supabase: SupabaseClient) {
         if (supabase.auth.currentSessionOrNull() == null) signIn(email, password)
     }
 
-    suspend fun signOut() = supabase.auth.signOut()
+    suspend fun signOut() {
+        push.unregister()
+        supabase.auth.signOut()
+    }
 
     suspend fun myName(): String? {
         val id = currentUserId ?: return null

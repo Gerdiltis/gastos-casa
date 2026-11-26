@@ -116,6 +116,32 @@ class GroupRepository @Inject constructor(private val supabase: SupabaseClient) 
         })
     }
 
+    suspend fun expense(expenseId: String): Expense? =
+        supabase.from("expenses").select(expenseColumns) { filter { eq("id", expenseId) } }
+            .decodeSingleOrNull<ExpenseDto>()?.toDomain()
+
+    suspend fun updateExpense(
+        expenseId: String,
+        description: String,
+        amountCents: Long,
+        categoryId: String?,
+        paidBy: String,
+        splits: List<Split>,
+    ) {
+        supabase.postgrest.rpc("update_expense", buildJsonObject {
+            put("p_expense_id", expenseId)
+            put("p_description", description)
+            put("p_amount_cents", amountCents)
+            put("p_category_id", categoryId)
+            put("p_paid_by", paidBy)
+            putJsonArray("p_splits") {
+                splits.forEach { s ->
+                    add(buildJsonObject { put("user_id", s.userId); put("share_cents", s.shareCents) })
+                }
+            }
+        })
+    }
+
     suspend fun deleteExpense(expenseId: String) {
         supabase.from("expenses").delete { filter { eq("id", expenseId) } }
     }

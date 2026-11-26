@@ -173,6 +173,7 @@ class GroupDetailViewModel @Inject constructor(
 fun GroupDetailScreen(
     onBack: () -> Unit,
     onAddExpense: (String) -> Unit,
+    onEditExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> },
     vm: GroupDetailViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -211,7 +212,7 @@ fun GroupDetailScreen(
                     return@LazyColumn
                 }
                 when (tab) {
-                    0 -> expensesTab(o, state, vm)
+                    0 -> expensesTab(o, state, vm, onEditExpense)
                     1 -> balancesTab(o, state, vm)
                     2 -> categoriesTab(o, state, vm)
                     else -> infoTab(o, state, vm, onBack)
@@ -223,12 +224,12 @@ fun GroupDetailScreen(
 
 // ---------------------------------------------------------------- Gastos
 
-private fun LazyListScope.expensesTab(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel) {
-    item { ExpensesTabContent(o, state, vm) }
+private fun LazyListScope.expensesTab(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit) {
+    item { ExpensesTabContent(o, state, vm, onEdit) }
 }
 
 @Composable
-private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel) {
+private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDetailViewModel, onEdit: (String, String) -> Unit) {
     var archived by rememberSaveable { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
@@ -285,7 +286,10 @@ private fun ExpensesTabContent(o: Overview, state: GroupDetailState, vm: GroupDe
             },
             confirmButton = { TextButton(onClick = { selected = null }) { Text("Cerrar", color = AppColors.Ink) } },
             dismissButton = {
-                if (!e.isArchived) TextButton(onClick = { vm.deleteExpense(e); selected = null }) { Text("Eliminar", color = AppColors.Red) }
+                if (!e.isArchived) Row {
+                    TextButton(onClick = { vm.deleteExpense(e); selected = null }) { Text("Eliminar", color = AppColors.Red) }
+                    if (!e.isSettlement) TextButton(onClick = { selected = null; onEdit(e.groupId, e.id) }) { Text("Editar", color = AppColors.Ink) }
+                }
             },
         )
     }

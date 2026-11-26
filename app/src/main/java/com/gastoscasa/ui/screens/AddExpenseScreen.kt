@@ -72,6 +72,8 @@ class AddExpenseViewModel @Inject constructor(
     auth: AuthRepository,
 ) : ViewModel() {
     private val groupId: String = checkNotNull(savedState["groupId"])
+    /** Si viene, estamos editando ese gasto en vez de crear uno nuevo. */
+    val expenseId: String? = savedState["expenseId"]
     private val me = auth.currentUserId.orEmpty()
     private val _state = MutableStateFlow(AddExpenseState(paidBy = me))
     val state = _state.asStateFlow()
@@ -81,14 +83,24 @@ class AddExpenseViewModel @Inject constructor(
             runCatching {
                 val g = async { repo.group(groupId) }
                 val c = async { repo.categories(groupId) }
-                g.await() to c.await()
-            }.onSuccess { (g, cats) ->
+                val e = async { expenseId?.let { repo.expense(it) } }
+                Triple(g.await(), c.await(), e.await())
+            }.onSuccess { (g, cats, e) ->
                 _state.update {
-                    it.copy(
-                        loading = false, group = g, categories = cats,
-                        // Por defecto: pagas tú y se reparte entre todos.
-                        participants = g?.members?.map { m -> m.userId }?.toSet().orEmpty(),
-                    )
+                    if (e != null) {
+                        it.copy(
+                            loading = false, group = g, categories = cats,
+                            description = e.description, amount = Money.toInput(e.amountCents),
+                            categoryId = e.categoryId, paidBy = e.paidBy,
+                            participants = e.splits.filter { s -> s.shareCents > 0 }.map { s -> s.userId }.toSet(),
+                        )
+                    } else {
+                        it.copy(
+                            loading = false, group = g, categories = cats,
+                            // Por defecto: pagas tú y se reparte entre todos.
+                            participants = g?.members?.map { m -> m.userId }?.toSet().orEmpty(),
+                        )
+                    }
                 }
             }.onFailure { e -> _state.update { it.copy(loading = false, error = e.friendly()) } }
         }
@@ -122,7 +134,10 @@ class AddExpenseViewModel @Inject constructor(
         val splits = SplitCalculator.equalSplit(cents!!, ordered)
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null) }
-            runCatching { repo.addExpense(groupId, s.description, cents, s.categoryId, s.paidBy, splits) }
+            runCatching {
+                if (expenseId != null) repo.updateExpense(expenseId, s.description, cents, s.categoryId, s.paidBy, splits)
+                else repo.addExpense(groupId, s.description, cents, s.categoryId, s.paidBy, splits)
+            }
                 .onSuccess { onDone() }
                 .onFailure { e -> _state.update { it.copy(saving = false, error = e.friendly()) } }
         }
@@ -136,7 +151,7 @@ fun AddExpenseScreen(onBack: () -> Unit, vm: AddExpenseViewModel = hiltViewModel
     val g = s.group
 
     Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
-        TopBar("Nuevo gasto", onBack = onBack)
+        TopBar(if (vm.expenseId != null) "Editar gasto" else "Nuevo gasto", onBack = onBack)
         if (s.loading) {
             Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = AppColors.Ink) }
             return@Column
@@ -194,7 +209,7 @@ fun AddExpenseScreen(onBack: () -> Unit, vm: AddExpenseViewModel = hiltViewModel
         }
         Box(Modifier.padding(20.dp).navigationBarsPadding()) {
             if (s.saving) Box(Modifier.fillMaxWidth(), Alignment.Center) { CircularProgressIndicator(color = AppColors.Ink) }
-            else PrimaryButton("Guardar gasto", { vm.save(onBack) })
+            else PrimaryButton(if (vm.expenseId != null) "Guardar cambios" else "Guardar gasto", { vm.save(onBack) })
         }
     }
 }

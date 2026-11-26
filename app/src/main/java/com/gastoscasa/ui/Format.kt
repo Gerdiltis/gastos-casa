@@ -35,6 +35,7 @@ private val knownServerErrors = listOf(
     "Código no válido", "No eres miembro del grupo", "El pagador no pertenece al grupo",
     "Elige al menos una persona", "El reparto no suma el total", "Una de las personas no pertenece al grupo",
     "Aún hay deudas pendientes en el grupo", "No hay gastos que archivar", "No autenticado",
+    "No se puede editar un gasto archivado", "Importe no válido",
 )
 
 /** Convierte excepciones técnicas en mensajes entendibles. */

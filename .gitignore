@@ -10,3 +10,5 @@ build/
 captures/
 .kotlin/
 keystore/
+/app/google-services.json
+fcm-service-account*.json

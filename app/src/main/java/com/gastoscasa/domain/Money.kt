@@ -16,6 +16,9 @@ object Money {
     }
 
     /** Acepta "12", "12,5", "12.50", "1.234,56". Devuelve null si no es válido o <= 0. */
+    /** Para rellenar un campo de importe al editar: 1234,50 (sin miles ni símbolo). */
+    fun toInput(cents: Long): String = "${cents / 100},${(cents % 100).toString().padStart(2, '0')}"
+
     fun parse(input: String): Long? {
         var s = input.trim().replace("€", "").replace(" ", "")
         if (s.isEmpty()) return null
