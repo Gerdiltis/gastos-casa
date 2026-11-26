@@ -12,3 +12,4 @@ captures/
 keystore/
 /app/google-services.json
 fcm-service-account*.json
+supabase/.temp/
